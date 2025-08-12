@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export default function VerifyEmail() {
   useEffect(() => {
-    document.title = "Verify Email – Aegis Vault";
+    document.title = "Verify Email – Locksmith";
   }, []);
 
   return (

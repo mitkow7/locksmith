@@ -22,7 +22,7 @@ export default function DashboardLayout() {
   const currentUser = apiClient.getCurrentUser();
 
   useEffect(() => {
-    document.title = "Aegis Vault – Dashboard";
+    document.title = "Locksmith – Dashboard";
   }, []);
 
   const handleLogout = async () => {
@@ -60,7 +60,7 @@ export default function DashboardLayout() {
           <header className={headerClasses}>
             <div className="h-14 px-4 flex items-center gap-3">
               <SidebarTrigger className="mr-1" />
-              <div className="text-lg font-semibold hidden sm:block">Aegis Vault</div>
+              <div className="text-lg font-semibold hidden sm:block">Locksmith</div>
 
               <div className="flex-1 max-w-xl">
                 <Input

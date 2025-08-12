@@ -21,7 +21,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = "Create Account – Aegis Vault";
+    document.title = "Create Account – Locksmith";
   }, []);
 
   const next = () => setStep((s) => Math.min(3, s + 1));
