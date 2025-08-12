@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useVault } from "@/context/VaultContext";
 import PasswordGenerator from "./PasswordGenerator";
 import { PasswordStrengthBar } from "./PasswordStrengthBar";
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export default function AddPasswordDialog({ open, onOpenChange }: Props) {
-  const { addItem } = useVault();
+  const { addItem, folders } = useVault();
   const [site, setSite] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +26,7 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
 
   useEffect(() => {
     if (!open) {
@@ -34,6 +36,7 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
       setFavorite(false);
       setTags([]);
       setNewTag("");
+      setSelectedFolder("");
     }
   }, [open]);
 
@@ -68,7 +71,7 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
       modifiedAt: new Date().toISOString(),
       strength: password.length >= 12 ? "strong" : password.length >= 8 ? "weak" : "compromised",
       favorite,
-      folder: undefined,
+      folder: selectedFolder || undefined,
       tags,
     });
     toast({ title: "Item saved" });
@@ -97,6 +100,22 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
               <Button variant="secondary" onClick={() => setShowGenerator(true)}>Generate</Button>
             </div>
             <PasswordStrengthBar password={password} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="folder">Folder</Label>
+            <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+              <SelectTrigger>
+                <SelectValue placeholder="No folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No folder</SelectItem>
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.name}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="fav" checked={favorite} onCheckedChange={(v) => setFavorite(Boolean(v))} />

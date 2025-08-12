@@ -6,12 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Grid2X2, List, Star, Copy, Shield, Globe, Edit, Tag, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Grid2X2, List, Star, Copy, Shield, Globe, Edit, Tag, X, MoreVertical, FolderOpen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import EditPasswordDialog from "@/components/EditPasswordDialog";
 
 export default function VaultPage() {
-  const { items: all } = useVault();
+  const { items: all, folders, updateItem } = useVault();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sort, setSort] = useState<"name" | "modified">("modified");
@@ -19,7 +27,7 @@ export default function VaultPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const location = useLocation();
-  const { cat } = useParams();
+  const { cat, folderName } = useParams();
 
   useEffect(() => {
     // reset search on route change
@@ -40,6 +48,10 @@ export default function VaultPage() {
     let filtered = all;
     if (location.pathname.endsWith("/favorites")) filtered = filtered.filter((i) => i.favorite);
     if (location.pathname.includes("/category/") && cat) filtered = filtered.filter((i) => i.type === cat);
+    if (location.pathname.includes("/folder/") && folderName) {
+      const decodedFolderName = decodeURIComponent(folderName);
+      filtered = filtered.filter((i) => i.folder === decodedFolderName);
+    }
     if (location.pathname.endsWith("/trash")) filtered = filtered.filter(() => false);
 
     // Filter by search query
@@ -57,7 +69,7 @@ export default function VaultPage() {
       return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
     });
     return filtered;
-  }, [all, query, sort, location.pathname, cat, selectedTags]);
+  }, [all, query, sort, location.pathname, cat, folderName, selectedTags]);
 
   const copyPassword = (item: VaultItem) => {
     if (!item.password) return;
@@ -68,6 +80,15 @@ export default function VaultPage() {
   const editItem = (item: VaultItem) => {
     setEditingItem(item);
     setShowEditDialog(true);
+  };
+
+  const moveToFolder = (item: VaultItem, folderName: string) => {
+    updateItem(item.id, { folder: folderName || undefined });
+    toast({ 
+      title: folderName 
+        ? `Moved "${item.site}" to "${folderName}" folder` 
+        : `Moved "${item.site}" to "No Folder"`
+    });
   };
 
   const toggleTag = (tag: string) => {
@@ -156,6 +177,39 @@ export default function VaultPage() {
                 />
                 <CardTitle className="flex-1 truncate text-base">{item.site}</CardTitle>
                 {item.favorite && <Star className="h-4 w-4 text-warning" />}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Move to Folder</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => moveToFolder(item, "")}
+                      className={!item.folder ? "bg-accent" : ""}
+                    >
+                      <FolderOpen className="mr-2 h-4 w-4" />
+                      No Folder
+                    </DropdownMenuItem>
+                    {folders.map((folder) => (
+                      <DropdownMenuItem 
+                        key={folder.id}
+                        onClick={() => moveToFolder(item, folder.name)}
+                        className={item.folder === folder.name ? "bg-accent" : ""}
+                      >
+                        <FolderOpen className="mr-2 h-4 w-4" />
+                        {folder.name}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => editItem(item)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
@@ -163,7 +217,15 @@ export default function VaultPage() {
                   <span className="truncate">{item.username || "—"}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Edited {new Date(item.modifiedAt).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span>Edited {new Date(item.modifiedAt).toLocaleDateString()}</span>
+                    {item.folder && (
+                      <Badge variant="outline" className="text-xs">
+                        <FolderOpen className="mr-1 h-3 w-3" />
+                        {item.folder}
+                      </Badge>
+                    )}
+                  </div>
                   <span className={statusColor(item.strength)}>
                     <Shield className="inline h-3 w-3 mr-1" /> {item.strength}
                   </span>
@@ -200,7 +262,15 @@ export default function VaultPage() {
               />
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{item.site}</div>
-                <div className="text-xs text-muted-foreground truncate">{item.username || "—"}</div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="truncate">{item.username || "—"}</span>
+                  {item.folder && (
+                    <Badge variant="outline" className="text-xs">
+                      <FolderOpen className="mr-1 h-3 w-3" />
+                      {item.folder}
+                    </Badge>
+                  )}
+                </div>
                 {item.tags && item.tags.length > 0 && (
                   <div className="flex gap-1 flex-wrap mt-1">
                     {item.tags.slice(0, 3).map((tag) => (
@@ -228,6 +298,34 @@ export default function VaultPage() {
                   <Button variant="outline" size="sm" onClick={() => editItem(item)}>
                     <Edit className="h-4 w-4 mr-2" /> Edit
                   </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Move to Folder</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => moveToFolder(item, "")}
+                        className={!item.folder ? "bg-accent" : ""}
+                      >
+                        <FolderOpen className="mr-2 h-4 w-4" />
+                        No Folder
+                      </DropdownMenuItem>
+                      {folders.map((folder) => (
+                        <DropdownMenuItem 
+                          key={folder.id}
+                          onClick={() => moveToFolder(item, folder.name)}
+                          className={item.folder === folder.name ? "bg-accent" : ""}
+                        >
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          {folder.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </div>

@@ -33,6 +33,7 @@ const App = () => (
               <Route path="recent" element={<VaultPage />} />
               <Route path="trash" element={<VaultPage />} />
               <Route path="category/:cat" element={<VaultPage />} />
+              <Route path="folder/:folderName" element={<VaultPage />} />
               <Route path="security" element={<SecurityPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>

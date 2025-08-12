@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VaultItem, VaultItemType, folders } from "@/data/mockVault";
+import { VaultItem, VaultItemType } from "@/data/mockVault";
 import { useVault } from "@/context/VaultContext";
-import { Eye, EyeOff, Star, Wand2, X, Plus } from "lucide-react";
+import { Eye, EyeOff, Star, Wand2, X, Plus, Shield, Folder, FolderOpen } from "lucide-react";
 import { PasswordStrengthBar } from "@/components/PasswordStrengthBar";
 import { toast } from "sonner";
 
@@ -29,7 +29,7 @@ interface EditPasswordDialogProps {
 }
 
 export default function EditPasswordDialog({ open, onOpenChange, item }: EditPasswordDialogProps) {
-  const { updateItem } = useVault();
+  const { updateItem, folders } = useVault();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [newTag, setNewTag] = useState("");
@@ -130,8 +130,9 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
     }
   };
 
-  if (!item) return null;
-
+  if (!item) {
+    return null;
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -271,42 +272,80 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Security Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Mark as Favorite</Label>
-                    <p className="text-sm text-muted-foreground">Quick access from favorites</p>
-                  </div>
-                  <Switch
-                    checked={formData.favorite}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, favorite: checked }))}
-                  />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="folder">Folder</Label>
+                <select 
+                  id="folder"
+                  value={formData.folder || ""} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, folder: e.target.value || undefined }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">No folder</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.name}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-muted-foreground">
+                  Organize your vault items into folders for better management
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Mark as Favorite</Label>
+                  <p className="text-sm text-muted-foreground">Quick access from favorites</p>
                 </div>
-                
-                {formData.password && (
+                <button
+                  onClick={() => setFormData(prev => ({ ...prev, favorite: !prev.favorite }))}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${
+                    formData.favorite 
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                      : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                >
+                  {formData.favorite && <Star className="w-4 h-4 mr-2 fill-current" />}
+                  {formData.favorite ? 'Favorited' : 'Add to Favorites'}
+                </button>
+              </div>
+              
+              {formData.password && (
+                <>
                   <div className="space-y-2">
                     <Label>Password Strength</Label>
                     <div className="flex items-center gap-2">
                       <Badge 
                         variant={
-                          calculatePasswordStrength(formData.password) === "strong" ? "default" :
-                          calculatePasswordStrength(formData.password) === "weak" ? "secondary" : "destructive"
+                          calculatePasswordStrength(formData.password || "") === "strong" ? "default" :
+                          calculatePasswordStrength(formData.password || "") === "weak" ? "secondary" : "destructive"
                         }
                       >
-                        {calculatePasswordStrength(formData.password)}
+                        {calculatePasswordStrength(formData.password || "")}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {formData.password.length} characters
+                        {(formData.password || "").length} characters
                       </span>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  
+                  {calculatePasswordStrength(formData.password || "") !== "strong" && (
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium">Security Recommendation</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Consider using a stronger password with at least 12 characters, including uppercase, lowercase, numbers, and special characters.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </TabsContent>
 
 
