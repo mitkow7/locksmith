@@ -1,0 +1,39 @@
+# Locksmith Password Manager
+
+# ===== SECURITY =====
+.env*
+*.key
+*.pem
+*.crt
+*.cer
+secrets.json
+backend/backend/local_settings.py
+
+# ===== BACKEND =====
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/db.sqlite3*
+backend/media/
+backend/static*/
+backend/venv/
+backend/.venv/
+
+# ===== FRONTEND =====
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.tsbuildinfo
+frontend/coverage/
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
+
+# ===== SYSTEM =====
+.DS_Store*
+._*
+Thumbs.db
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+*~
