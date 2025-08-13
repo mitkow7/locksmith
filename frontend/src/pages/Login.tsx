@@ -25,6 +25,7 @@ export default function Login() {
   const [code, setCode] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [resendingCode, setResendingCode] = useState(false);
+  const [tempPassword, setTempPassword] = useState(""); // Store password for 2FA encryption setup
 
   useEffect(() => {
     document.title = "Login – Locksmith";
@@ -35,12 +36,13 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await apiClient.login({ email, password });
+      const response = await apiClient.loginWithEncryption({ email, password });
       
       if (response.success) {
         if (response.requires_2fa && response.user_id) {
           // 2FA required - show verification dialog
           setUserId(response.user_id);
+          setTempPassword(password); // Store password for encryption setup after 2FA
           setOpen2FA(true);
           toast.success(response.message || "Please check your email for the verification code");
         } else {
@@ -67,8 +69,17 @@ export default function Login() {
         const response = await apiClient.verify2FA(userId, code);
         
         if (response.success) {
+          // Set up encryption after successful 2FA verification
+          if (response.user && tempPassword) {
+            const userSalt = `locksmith_user_${response.user.id}_salt_v1`;
+            const { encryptionService } = await import("@/lib/encryption");
+            encryptionService.setMasterKey(tempPassword, userSalt);
+            console.log('🔐 Encryption initialized after 2FA verification');
+          }
+          
           toast.success("2FA verification successful!");
           setOpen2FA(false);
+          setTempPassword(""); // Clear stored password
           navigate("/dashboard");
         } else {
           toast.error(response.error || "Invalid verification code");
@@ -107,6 +118,7 @@ export default function Login() {
     setOpen2FA(false);
     setCode("");
     setUserId(null);
+    setTempPassword(""); // Clear stored password
   };
 
   return (

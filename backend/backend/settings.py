@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'api.apps.ApiConfig',
+    'vault.apps.VaultConfig',
 ]
 
 MIDDLEWARE = [

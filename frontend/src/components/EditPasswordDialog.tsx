@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VaultItem, VaultItemType } from "@/data/mockVault";
+import { VaultItem } from "@/context/VaultContext";
 import { useVault } from "@/context/VaultContext";
 import { Eye, EyeOff, Star, Wand2, X, Plus, Shield, Folder, FolderOpen } from "lucide-react";
 import { PasswordStrengthBar } from "@/components/PasswordStrengthBar";
@@ -40,7 +40,7 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
     username: "",
     password: "",
     notes: "",
-    type: "login",
+    item_type: "login",
     favorite: false,
     folder: "",
     tags: [],
@@ -54,7 +54,7 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
         username: item.username || "",
         password: item.password || "",
         notes: item.notes || "",
-        type: item.type || "login",
+        item_type: item.item_type || "login",
         favorite: item.favorite || false,
         folder: item.folder || "",
         tags: item.tags || [],
@@ -68,21 +68,17 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
     setLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update the item
-      updateItem(item.id, {
+      // Update the item using the real API
+      await updateItem(item.id, {
         ...formData,
         // Recalculate password strength based on new password
         strength: calculatePasswordStrength(formData.password || ""),
       });
       
-      toast.success("Item updated successfully!");
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to update item");
       console.error("Update error:", error);
+      // Error is already handled in the context with toast
     } finally {
       setLoading(false);
     }
@@ -138,11 +134,11 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Edit {item.type === "login" ? "Password" : item.type === "note" ? "Secure Note" : "Item"}
+            Edit {item.item_type === "login" ? "Password" : item.item_type === "note" ? "Secure Note" : "Item"}
             {formData.favorite && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
           </DialogTitle>
           <DialogDescription>
-            Update your {item.type} details and security settings.
+            Update your {item.item_type} details and security settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -156,17 +152,17 @@ export default function EditPasswordDialog({ open, onOpenChange, item }: EditPas
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="site">
-                  {item.type === "login" ? "Website or App" : "Title"}
+                  {item.item_type === "login" ? "Website or App" : "Title"}
                 </Label>
                 <Input
                   id="site"
                   value={formData.site}
                   onChange={(e) => setFormData(prev => ({ ...prev, site: e.target.value }))}
-                  placeholder={item.type === "login" ? "https://example.com" : "Note title"}
+                  placeholder={item.item_type === "login" ? "https://example.com" : "Note title"}
                 />
               </div>
 
-              {item.type === "login" && (
+              {item.item_type === "login" && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="username">Username or Email</Label>

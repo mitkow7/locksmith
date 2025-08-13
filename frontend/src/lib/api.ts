@@ -1,4 +1,5 @@
 // API client utility for communicating with Django backend
+import { encryptionService, type VaultData } from './encryption';
 
 interface LoginData {
   email: string;
@@ -41,6 +42,36 @@ interface ApiResponse<T = any> {
   error?: string;
   data?: T;
   message?: string;
+}
+
+interface VaultItem {
+  id: number;
+  item_type: 'login' | 'card' | 'note' | 'identity';
+  name: string;
+  is_favorite: boolean;
+  strength: 'strong' | 'weak' | 'compromised';
+  folder?: number;
+  folder_name?: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+  encrypted_data: string;
+  decrypted_data?: VaultData;
+}
+
+interface VaultFolder {
+  id: number;
+  name: string;
+  created_at: string;
+  items_count: number;
+}
+
+interface VaultItemCreateData {
+  name: string;
+  item_type: 'login' | 'card' | 'note' | 'identity';
+  sensitiveData: VaultData;
+  folder?: number;
+  is_favorite?: boolean;
 }
 
 class ApiClient {
@@ -388,8 +419,194 @@ class ApiClient {
     }
     return null;
   }
+
+  // Enhanced login method that sets up encryption
+  async loginWithEncryption(data: LoginData): Promise<AuthResponse> {
+    const response = await this.login(data);
+    
+    if (response.success && response.user) {
+      // Set up client-side encryption with user's password
+      const userSalt = `locksmith_user_${response.user.id}_salt_v1`;
+      encryptionService.setMasterKey(data.password, userSalt);
+      console.log('🔐 Encryption initialized for user:', response.user.email);
+    }
+    
+    return response;
+  }
+
+  // Vault Item Methods
+  async createVaultItem(itemData: VaultItemCreateData): Promise<VaultItem> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    // Encrypt sensitive data on client
+    const encrypted_data = encryptionService.encrypt(itemData.sensitiveData);
+    
+    // Calculate password strength on client (don't send password to server)
+    const strength = encryptionService.calculatePasswordStrength(
+      itemData.sensitiveData.password || ''
+    );
+
+    const response = await this.request<VaultItem>('/vault/items/', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: itemData.name,
+        item_type: itemData.item_type,
+        encrypted_data,  // ← Only encrypted blob sent to server
+        folder: itemData.folder,
+        is_favorite: itemData.is_favorite || false,
+        strength
+      })
+    });
+
+    // Add decrypted data for immediate use
+    response.decrypted_data = itemData.sensitiveData;
+    return response;
+  }
+
+  async getVaultItems(): Promise<VaultItem[]> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    const items = await this.request<VaultItem[]>('/vault/items/');
+    
+    // Decrypt each item on client
+    return items.map((item: VaultItem) => ({
+      ...item,
+      decrypted_data: item.encrypted_data ? 
+        encryptionService.decrypt(item.encrypted_data) : {}
+    }));
+  }
+
+  async getVaultItem(id: number): Promise<VaultItem> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    const item = await this.request<VaultItem>(`/vault/items/${id}/`);
+    
+    // Decrypt the item
+    item.decrypted_data = item.encrypted_data ? 
+      encryptionService.decrypt(item.encrypted_data) : {};
+    
+    return item;
+  }
+
+  async updateVaultItem(id: number, itemData: Partial<VaultItemCreateData>): Promise<VaultItem> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    const updatePayload: any = {};
+    
+    // Copy non-sensitive fields
+    if (itemData.name) updatePayload.name = itemData.name;
+    if (itemData.item_type) updatePayload.item_type = itemData.item_type;
+    if (itemData.folder !== undefined) updatePayload.folder = itemData.folder;
+    if (itemData.is_favorite !== undefined) updatePayload.is_favorite = itemData.is_favorite;
+
+    // Handle sensitive data
+    if (itemData.sensitiveData) {
+      updatePayload.encrypted_data = encryptionService.encrypt(itemData.sensitiveData);
+      
+      // Recalculate strength if password changed
+      if (itemData.sensitiveData.password) {
+        updatePayload.strength = encryptionService.calculatePasswordStrength(
+          itemData.sensitiveData.password
+        );
+      }
+    }
+
+    const response = await this.request<VaultItem>(`/vault/items/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(updatePayload)
+    });
+
+    // Add decrypted data
+    response.decrypted_data = response.encrypted_data ? 
+      encryptionService.decrypt(response.encrypted_data) : {};
+    
+    return response;
+  }
+
+  async deleteVaultItem(id: number): Promise<void> {
+    await this.request(`/vault/items/${id}/`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getVaultItemsByType(type: string): Promise<VaultItem[]> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    const items = await this.request<VaultItem[]>(`/vault/items/type/${type}/`);
+    
+    return items.map((item: VaultItem) => ({
+      ...item,
+      decrypted_data: item.encrypted_data ? 
+        encryptionService.decrypt(item.encrypted_data) : {}
+    }));
+  }
+
+  async getFavoriteVaultItems(): Promise<VaultItem[]> {
+    if (!encryptionService.isReady()) {
+      throw new Error('Encryption service not initialized. Please login first.');
+    }
+
+    const items = await this.request<VaultItem[]>('/vault/items/favorites/');
+    
+    return items.map((item: VaultItem) => ({
+      ...item,
+      decrypted_data: item.encrypted_data ? 
+        encryptionService.decrypt(item.encrypted_data) : {}
+    }));
+  }
+
+  // Folder Methods
+  async getVaultFolders(): Promise<VaultFolder[]> {
+    return this.request<VaultFolder[]>('/vault/folders/');
+  }
+
+  async createVaultFolder(name: string): Promise<VaultFolder> {
+    return this.request<VaultFolder>('/vault/folders/', {
+      method: 'POST',
+      body: JSON.stringify({ name })
+    });
+  }
+
+  async updateVaultFolder(id: number, name: string): Promise<VaultFolder> {
+    return this.request<VaultFolder>(`/vault/folders/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    });
+  }
+
+  async deleteVaultFolder(id: number): Promise<void> {
+    await this.request(`/vault/folders/${id}/`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Utility Methods
+  generatePassword(length: number = 16, includeSymbols: boolean = true): string {
+    return encryptionService.generatePassword(length, includeSymbols);
+  }
+
+  // Logout with encryption cleanup
+  async logoutWithEncryption(): Promise<ApiResponse> {
+    const response = await this.logout();
+    
+    // Clear encryption key from memory
+    encryptionService.clearKey();
+    console.log('🔒 Encryption key cleared on logout');
+    
+    return response;
+  }
 }
 
 // Export a singleton instance
 export const apiClient = new ApiClient();
-export type { User, Profile, AuthResponse, ApiResponse, LoginData, RegisterData };
+export type { User, Profile, AuthResponse, ApiResponse, LoginData, RegisterData, VaultItem, VaultFolder, VaultItemCreateData };

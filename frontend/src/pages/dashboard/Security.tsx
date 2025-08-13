@@ -1,17 +1,19 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { sampleVault } from "@/data/mockVault";
+import { useVault } from "@/context/VaultContext";
 import { Shield, AlertTriangle, RefreshCw, CheckCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 export default function SecurityPage() {
+  const { items } = useVault();
+  
   const stats = useMemo(() => {
-    const total = sampleVault.length;
-    const weak = sampleVault.filter((i) => i.strength === "weak").length;
-    const compromised = sampleVault.filter((i) => i.strength === "compromised").length;
-    const strong = sampleVault.filter((i) => i.strength === "strong").length;
+    const total = items.length;
+    const weak = items.filter((i) => i.strength === "weak").length;
+    const compromised = items.filter((i) => i.strength === "compromised").length;
+    const strong = items.filter((i) => i.strength === "strong").length;
     return { total, weak, compromised, strong };
-  }, []);
+  }, [items]);
 
   const data = [
     { name: "Strong", value: stats.strong, color: "hsl(var(--success))" },

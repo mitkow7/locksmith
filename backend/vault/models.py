@@ -30,21 +30,11 @@ class VaultItemTag(models.Model):
 
 
 class VaultItemTagRelation(models.Model):
-    vault_item = models.ForeignKey(VaultItem, on_delete=models.CASCADE)
-    vault_item_tag = models.ForeignKey(VaultItemTag, on_delete=models.CASCADE)
+    vault_item = models.ForeignKey(VaultItem, on_delete=models.CASCADE, related_name='tag_relations')
+    vault_item_tag = models.ForeignKey(VaultItemTag, on_delete=models.CASCADE, related_name='item_relations')
 
     def __str__(self):
         return f"{self.vault_item.name} - {self.vault_item_tag.name}"
-
-
-class UserEncryptionKey(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    encryption_key = models.TextField()
-    salt = models.CharField(max_length=64)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.encryption_key}"
 
 
 class VaultFolder(models.Model):

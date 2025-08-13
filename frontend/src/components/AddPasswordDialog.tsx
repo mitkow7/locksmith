@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useVault } from "@/context/VaultContext";
 import PasswordGenerator from "./PasswordGenerator";
 import { PasswordStrengthBar } from "./PasswordStrengthBar";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 
 interface Props {
@@ -18,7 +18,10 @@ interface Props {
 }
 
 export default function AddPasswordDialog({ open, onOpenChange }: Props) {
-  const { addItem, folders } = useVault();
+  console.log('AddPasswordDialog component loaded, open:', open);
+  
+  // React hooks must be called at the top level
+  const { addItem, folders, loading } = useVault();
   const [site, setSite] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,19 +29,21 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [selectedFolder, setSelectedFolder] = useState<string>("");
+  const [selectedFolder, setSelectedFolder] = useState<string>("no-folder");
+  
+  console.log('VaultContext loaded successfully, folders:', folders?.length);
 
-  useEffect(() => {
-    if (!open) {
-      setSite("");
-      setUsername("");
-      setPassword("");
-      setFavorite(false);
-      setTags([]);
-      setNewTag("");
-      setSelectedFolder("");
-    }
-  }, [open]);
+    useEffect(() => {
+      if (!open) {
+        setSite("");
+        setUsername("");
+        setPassword("");
+        setFavorite(false);
+        setTags([]);
+        setNewTag("");
+        setSelectedFolder("no-folder");
+      }
+    }, [open]);
 
   const addTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
@@ -58,31 +63,61 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  const onSave = () => {
-    if (!site || !password) return;
-    addItem({
-      id: String(Date.now()),
-      type: "login",
-      site,
-      username,
-      password,
-      notes: "",
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      strength: password.length >= 12 ? "strong" : password.length >= 8 ? "weak" : "compromised",
-      favorite,
-      folder: selectedFolder || undefined,
-      tags,
-    });
-    toast({ title: "Item saved" });
-    onOpenChange(false);
+  const onSave = async () => {
+    if (!site || !password) {
+      toast.error("Please fill in both site and password fields");
+      return;
+    }
+    
+    try {
+      // Create a simplified VaultItem object - most fields will be populated by the API response
+      const newItem = {
+        id: String(Date.now()), // Temporary ID, will be overwritten
+        item_type: "login" as const,
+        site,
+        username: username || "",
+        password,
+        notes: "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        modifiedAt: new Date().toISOString(),
+        strength: (password.length >= 12 ? "strong" : password.length >= 8 ? "weak" : "compromised") as "strong" | "weak" | "compromised",
+        favorite,
+        is_favorite: favorite,
+        folder: (selectedFolder && selectedFolder !== "no-folder") ? selectedFolder : undefined,
+        folder_name: (selectedFolder && selectedFolder !== "no-folder") ? selectedFolder : undefined,
+        tags,
+        encrypted_data: "", // Will be handled by the API
+        // Add required fields from VaultItem interface
+        name: site,
+        decrypted_data: {
+          username: username || "",
+          password,
+          url: site,
+          notes: ""
+        }
+      };
+      
+      await addItem(newItem);
+      onOpenChange(false);
+    } catch (error) {
+      // Error is already handled in the context with toast
+      console.error('Failed to save item:', error);
+      toast.error("Failed to save item. Please try again.");
+    }
   };
+
+  // Debug: Log when dialog opens
+  console.log('AddPasswordDialog render:', { open, folders: folders?.length });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Password</DialogTitle>
+          <DialogDescription>
+            Create a new password entry for your vault. All data is encrypted locally before being saved.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -108,8 +143,8 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
                 <SelectValue placeholder="No folder" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No folder</SelectItem>
-                {folders.map((folder) => (
+                <SelectItem value="no-folder">No folder</SelectItem>
+                {(folders || []).map((folder) => (
                   <SelectItem key={folder.id} value={folder.name}>
                     {folder.name}
                   </SelectItem>
@@ -164,7 +199,9 @@ export default function AddPasswordDialog({ open, onOpenChange }: Props) {
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={onSave} disabled={!site || !password}>Save</Button>
+          <Button onClick={onSave} disabled={!site || !password || loading}>
+            {loading ? "Saving..." : "Save"}
+          </Button>
         </DialogFooter>
       </DialogContent>
 

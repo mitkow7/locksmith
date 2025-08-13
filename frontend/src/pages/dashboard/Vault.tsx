@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { getFaviconUrl, type VaultItem } from "@/data/mockVault";
+import { getFaviconUrl } from "@/data/mockVault";
+import { type VaultItem } from "@/context/VaultContext";
 import { useVault } from "@/context/VaultContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
